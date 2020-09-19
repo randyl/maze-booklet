@@ -8,7 +8,7 @@ This repository contains:
   as SVG instead of PNG used in the book.
 - The Raku program `bin/maze-booklet` to generate a PDF of mazes.
 - An example bash script `examples/larry.sh` (for Larry Wall) showing how to generate a booklet, along with
-  the resulting booklet `examples/larry.pdf` and its solutions `examples/larry-solution.pdf`.
+  the resulting booklet [`examples/larry.pdf`](https://github.com/randyl/maze-booklet/blob/master/examples/larry.pdf) and its solutions [`examples/larry-solution.pdf`](https://github.com/randyl/maze-booklet/blob/master/examples/larry-solution.pdf).
 
 The code in this repository requires the following Raku modules:
 - SVG
