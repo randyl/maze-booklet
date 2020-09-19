@@ -1,10 +1,10 @@
 As a way to learn the [Raku language](https://raku.org/), I worked through the book 
-**[Mazes for Programmers](https://pragprog.com/titles/jbmaze/mazes-for-programmers/) by Jamis Buck, 
+*[Mazes for Programmers](https://pragprog.com/titles/jbmaze/mazes-for-programmers/)* by Jamis Buck, 
 rewriting all the maze algorithms into Raku. I then wrote a script to create a "Booklet O' Mazes" 
 for all the kids in my extended family.
 
 This repository contains:
-- Raku versions of the maze algorithms and grids from __Mazes for Programmers__. Mazes are generated
+- Raku versions of the maze algorithms and grids from *Mazes for Programmers*. Mazes are generated
   as SVG instead of PNG used in the book.
 - The program `bin/maze-booklets` to generate a PDF of mazes.
 - An example bash script `examples/larry.sh` (for Larry Wall) showing how to generate a booklet, along with
@@ -23,4 +23,3 @@ And the following programs are also required:
     - To convert HTML/SVG files to PDF via --headless mode.
 - pdftk
     - To combine multiple PDFs into a single file.
-- 
