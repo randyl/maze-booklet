@@ -1,12 +1,12 @@
 As a way to learn the [Raku language](https://raku.org/), I worked through the book 
 *[Mazes for Programmers](https://pragprog.com/titles/jbmaze/mazes-for-programmers/)* by Jamis Buck, 
-rewriting all the maze algorithms into Raku. I then wrote a script to create a "Booklet O' Mazes" 
+rewriting all the maze algorithms into Raku. I then wrote a program to create a PDF of a "Booklet O' Mazes"
 for all the kids in my extended family.
 
 This repository contains:
 - Raku versions of the maze algorithms and grids from *Mazes for Programmers*. Mazes are generated
   as SVG instead of PNG used in the book.
-- The program `bin/maze-booklets` to generate a PDF of mazes.
+- The Raku program `bin/maze-booklet` to generate a PDF of mazes.
 - An example bash script `examples/larry.sh` (for Larry Wall) showing how to generate a booklet, along with
   the resulting booklet `examples/larry.pdf` and its solutions `examples/larry-solution.pdf`.
 
