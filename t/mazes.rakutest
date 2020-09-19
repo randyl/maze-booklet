@@ -1,0 +1,302 @@
+use Test;
+
+use AldousBroder;
+use BinaryTree;
+use Cell;
+use ColoredGrid;
+use CubeGrid;
+use CylinderGrid;
+use DistanceGrid;
+use Ellers;
+use Grid;
+use Grid3D;
+use GrowingTree;
+use HexGrid;
+use HuntAndKill;
+use Kruskals;
+use KruskalsWeave;
+use Mask;
+use MaskedGrid;
+use MoebiusGrid;
+use PolarGrid;
+use Sidewinder;
+use RecursiveBacktracker;
+use RecursiveDivision;
+use Prims;
+use TriangleGrid;
+use WeaveGrid;
+use WeightedGrid;
+use Wilsons;
+
+# This enormous list of tests represents all the scripts
+# from the "Mazes for Programmers" book used to demonstrate
+# various algorithms and grids.
+
+my %tests =
+    'aldous-broder' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        AldousBroder.on: $grid;
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+    'aldous-broder-colored' => {
+        my $grid = ColoredGrid.new: :rows(20), :columns(20);
+        AldousBroder.on: $grid;
+        $grid.distances = $grid.middle-cell.distances;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'ascii-mask' => {
+        my $mask = Mask.from-txt: 't/mask.txt';
+        my $grid = MaskedGrid.new: :$mask;
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+    'binary-tree' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        BinaryTree.on($grid);
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+    'circle-maze' => {
+        my $grid = PolarGrid.new: :rows(25);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'circle-maze-braid' => {
+        my $grid = PolarGrid.new: :rows(25);
+        RecursiveBacktracker.on: $grid;
+        $grid.braid: 1;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'colored-grid' => {
+        my $grid = ColoredGrid.new( :rows(25), :columns(25) );
+        BinaryTree.on: $grid;
+        $grid.distances = $grid.middle-cell.distances;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'cube' => {
+        my $grid = CubeGrid.new: :rows(10);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'cylinder' => {
+        my $grid = CylinderGrid.new: :rows(7), :columns(16);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'delta' => {    # aka Triangle
+        my $grid = TriangleGrid.new: :rows(50), :columns(87);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'dijkstra' => {
+        my $grid = DistanceGrid.new: :rows(5), :columns(5);
+        BinaryTree.on( $grid );
+
+        $grid.distances = $grid[0;0].distances;
+        my $sw = $grid[ $grid.rows - 1; 0 ];
+        $grid.distances = $grid.distances.path-to( $sw );
+
+        Map.new: 'txt' => ~$grid;
+    },
+    'ellers' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        Ellers.on: :$grid;
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+    'grid3d' => {
+        my $grid = Grid3D.new: :levels(3), :rows(3), :columns(3);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'growing-tree-random' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        GrowingTree.on: :$grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'growing-tree-last' => {  # aka RecursiveBacktracker
+        my $grid = Grid.new: :rows(20), :columns(20);
+        GrowingTree.on: :$grid, :next-cell({ @^list.tail });
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'growing-tree-mix' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        GrowingTree.on: :$grid, :next-cell({ Bool.pick ?? @^list.tail !! @^list.pick });
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'hex' => {
+        my $grid = HexGrid.new: :rows(25), :columns(25);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'hunt-and-kill' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        HuntAndKill.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'hunt-and-kill-colored' => {
+        my $grid = ColoredGrid.new: :rows(20), :columns(20);
+        HuntAndKill.on: $grid;
+        $grid.distances = $grid.middle-cell.distances;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'killing-cells' => {
+        my $grid = Grid.new: :rows(5), :columns(5);
+
+        with $grid[0;0] {
+            .east.west = Cell;
+            .south.north = Cell;
+        }
+        with $grid[4;4] {
+            .west.east = Cell;
+            .north.south = Cell;
+        }
+
+        RecursiveBacktracker.on: $grid, :start-at( $grid[1;1] );
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'kruskals' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        Kruskals.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'kruskals-weave' => {
+        my $grid = PreconfiguredGrid.new: :rows(20), :columns(20);
+        my $state = Kruskals::State.new: :$grid;
+
+        for $grid.coordinates.pick: * -> ($row, $column) {
+            $state.add-crossing: $grid[$row; $column];
+        }
+
+        Kruskals.on: $grid, $state;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'longest-path' => {
+        my $grid = DistanceGrid.new: :rows(5), :columns(5);
+        BinaryTree.on: $grid;
+
+        my $start = $grid[0;0];
+        my $new-start = $start.distances.max.key;
+
+        my $new-distances = $new-start.distances;
+        my $goal = $new-distances.max.key;
+
+        $grid.distances = $new-distances.path-to: $goal;
+        Map.new: 'txt' => ~$grid;
+    },
+    'moebius' => {
+        my $grid = MoebiusGrid.new: :rows(5), :columns(50);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'png-mask' => {
+        my $mask = Mask.from-png: 't/mask.png';
+        my $grid = MaskedGrid.new: :$mask;
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'polar-grid' => {
+        # There's no algorithm applied here. Just testing
+        # the display of a full grid with adaptive subdivision.
+        my $grid = PolarGrid.new: :rows(8);
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'prims-simple' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        SimplifiedPrims.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'prims-true' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        TruePrims.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'recursive-backtracker' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+    'recursive-backtracker-braid' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        RecursiveBacktracker.on: $grid;
+        $grid.braid: 0.3;
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+    'recursive-backtracker-colored' => {
+        my $grid = ColoredGrid.new: :rows(20), :columns(20);
+        RecursiveBacktracker.on: $grid;
+        $grid.distances = $grid.middle-cell.distances;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'recursive-division' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        RecursiveDivision.on: :$grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'sidewinder' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        Sidewinder.on( $grid );
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+    'simple-mask' => {
+        my $mask = Mask.new: :rows(5), :columns(5);
+        $mask[0; 0] = False;
+        $mask[2; 2] = False;
+        $mask[4; 4] = False;
+
+        my $grid = MaskedGrid.new: :$mask;
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+    'weave' => {
+        my $grid = WeaveGrid.new: :rows(20), :columns(20);
+        RecursiveBacktracker.on: $grid;
+        Map.new: 'svg' => $grid.to-svg;
+    },
+    'weighted' => {
+        my $grid = WeightedGrid.new: :rows(10), :columns(10);
+        RecursiveBacktracker.on: $grid;
+
+        # Add loops to the maze so we can block off one of the cells in the
+        # solution path and (usually) still have an alternate solution path.
+        $grid.braid: 0.5;
+        my ($start, $finish) = $grid[0;0], $grid[ $grid.rows - 1; $grid.columns - 1 ];
+
+        $grid.distances = $start.distances.path-to: $finish;
+        my $orig-svg = $grid.to-svg;
+
+        # This lava cell would normally be chosen at random among the cells
+        # in the solution path. But with the hard-coded srand value in this
+        # test, the "random" cell was one that caused the maze to not
+        # have an alternate solution. So this cell was manually chosen to
+        # make the maze work.
+        my $lava = $grid[8;6];
+        $lava.weight = 50;
+
+        $grid.distances = $start.distances.path-to: $finish;
+
+        Map.new: 'orig.svg' => $orig-svg, 'rerouted.svg' => $grid.to-svg;
+    },
+    'wilsons' => {
+        my $grid = Grid.new: :rows(20), :columns(20);
+        Wilsons.on: $grid;
+        Map.new: 'txt' => ~$grid, 'svg' => $grid.to-svg;
+    },
+;
+
+
+for %tests.kv -> $name, &block {
+    srand 42;
+    my %mazes = &block();
+    for %mazes.kv -> $ext, $got {
+        my $filename = "t/expected/$name.$ext";
+        if !$filename.IO.e {
+            $filename.IO.spurt: $got;
+            pass("Generated $filename");
+        }
+        else {
+            is $got, $filename.IO.slurp, "$filename ok";
+        }
+    }
+}
+
+
+done-testing;

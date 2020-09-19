@@ -1,0 +1,241 @@
+#!/usr/bin/env raku
+
+use CubeGrid;
+use GrowingTree;
+use Grid;
+use HexGrid;
+use Image::Resize;
+use Kruskals;
+use KruskalsWeave;
+use Mask;
+use MaskedGrid;
+use PolarGrid;
+use RecursiveBacktracker;
+use TriangleGrid;
+use Wilsons;
+
+subset AlgorithmType of Str where any <Wilsons RecursiveBacktracker GrowingTree None>;
+
+multi sub MAIN(
+    Str :$type! where 'cover',
+    Str :$for!,
+    Str :$author!,
+    Str :$name = 'cover',
+    Int :$debug = 0,
+ ) {
+    my $content = qq:to/END/;
+<html>
+    <head>
+        <style>
+            .center \{ text-align: center; }
+            #title  \{ font-size: 62px; line-height: 1.75; }
+            #for    \{ font-size: 72px; font-weight: bold; }
+            #desc   \{ font-size: 25px; margin-top: 10% }
+            #author \{ font-size: 25px; margin-top: 30px }
+        </style>
+    </head>
+    <body>
+        <div id="title" class="center">
+            A<br/>
+            Booklet<br/>
+            O'<br/>
+            Mazes<br/>
+            For<br/>
+            <span id="for">{$for}</span><br/>
+        </div>
+        <div id="desc" class="center">
+            Solve the mazes by connecting each &#128420;!
+        </div>
+        <div id="author" class="center">
+            Made with &#128420; by <strong>{$author}</strong> on {DateTime.now.yyyy-mm-dd}
+        </div>
+    </body>
+</html>
+END
+
+    my $html-file = "$name.html";
+    $html-file.IO.spurt: $content;
+    html-to-pdf( $html-file, "$name.pdf", $debug );
+}
+
+
+multi sub MAIN(
+    Str :$type! where 'circle' | 'cube',
+    Int :$rows!,
+    |c
+) {
+    my $grid = do given $type {
+        when 'circle' { PolarGrid.new: :$rows }
+        when 'cube'   { CubeGrid.new: :$rows }
+    }
+    make-and-export-maze( :$grid, |c );
+}
+
+
+multi sub MAIN(
+    Str :$type! where 'grid',
+    Str :$cell! where 'square' | 'hex' | 'triangle',
+    Int :$rows!,
+    Int :$columns!,
+    |c
+) {
+    my $grid = do given $cell {
+        when 'triangle' { TriangleGrid.new: :$rows, :$columns }
+        when 'hex'      {      HexGrid.new: :$rows, :$columns }
+        when 'square'   {         Grid.new: :$rows, :$columns }
+    };
+    make-and-export-maze( :$grid, |c );
+}
+
+multi sub MAIN(
+    Str :$type! where 'weave',
+    Int :$rows!,
+    Int :$columns!,
+    :$algorithm where !*.defined, # Weaves require a specific algorithm; don't allow a custom one.
+    |c
+) {
+    my $grid = PreconfiguredGrid.new: :$rows, :$columns;
+    my $state = Kruskals::State.new: :$grid;
+
+    for $grid.coordinates.pick: * -> ($row, $column) {
+        $state.add-crossing: $grid[$row; $column];
+    }
+
+    Kruskals.on: $grid, $state;
+
+    # Don't apply any algorithm, since we did it manually.
+    make-and-export-maze( :$grid, :algorithm<None>, |c );
+}
+
+
+multi sub MAIN(
+    Str :$type where 'mask',
+    Str :$image where *.IO.r,
+    Real :$resize-factor where 0 <= * <= 1 = 1,
+    |c
+) {
+    my $resized-file = $*CWD.add( "{$image.IO.basename}.resized" ).absolute;
+    resize-image( $image, $resized-file, $resize-factor );
+
+    my $mask = Mask.from-png: $resized-file;
+    $resized-file.IO.unlink unless c.hash<debug>;
+
+    my $grid = MaskedGrid.new: :$mask;
+
+    make-and-export-maze( :$grid, |c );
+}
+
+
+sub make-and-export-maze(
+    Grid :$grid!,
+    Str  :$name!,
+    AlgorithmType :$algorithm = 'GrowingTree',
+    Int  :$cell-size = 10,
+    Real :$braid = 0,
+    Int  :$solution = 1,
+    Str  :$style = '',
+    Int  :$debug = 0,
+    Int  :$text-offset = 6,
+    Bool :$landscape = False,
+) {
+    # Generate a maze within the grid.
+    given $algorithm {
+        when 'None' { }
+        when 'Wilsons' { Wilsons.on: $grid }
+        when 'RecursiveBacktracker' { RecursiveBacktracker.on: $grid }
+        when 'GrowingTree' {
+            my &custom = -> @list {
+                given (^3).pick {
+                    when 0|1 { @list.tail } # 66% RecursiveBacktracker
+                    when 2   { @list.pick } # 33% Simplified Prim's
+                }
+            }
+            GrowingTree.on: :$grid, :next-cell(&custom);
+        }
+    };
+
+    # Remove dead ends.
+    $grid.braid: $braid if $braid;
+
+    # Find the start and end of the longest path.
+    my $end = $grid.random-cell.distances.max.key;
+    my $distances = $end.distances;
+    my $start = $distances.max.key;
+
+    # Flag the start and end cells with a heart.
+    .contents = '&#128420;' for $start, $end;
+
+    # Create the maze PDF.
+    grid-to-pdf( $name, :$grid, :$cell-size, :$style, :$text-offset, :$landscape, :$debug );
+
+    if $solution {
+        # Add breadcrumbs in each cell along the solution path.
+        my @solution-cells = $distances.path-to( $start ).cells.grep: { $distances{$_}.defined };
+        .contents //= '*' for @solution-cells; # Don't overwrite hearts in start/end cells.
+
+        # Create the solution PDF.
+        grid-to-pdf( "{$name}-solution", :$grid, :$cell-size, :$style, :$text-offset, :$landscape, :$debug );
+    }
+}
+
+
+sub grid-to-pdf( $name, Grid :$grid, |c ) {
+    my $html = grid-as-html( :$grid, |c );
+    my $html-file = "$name.html";
+    $html-file.IO.spurt: $html;
+
+    html-to-pdf($html-file, "$name.pdf", c.hash<debug>);
+}
+
+
+sub grid-as-html(
+    Grid :$grid,
+    Int :$cell-size,
+    Str :$style,
+    Int :$text-offset,
+    Bool :$landscape,
+    Int :$debug,
+) {
+    # Output the maze to SVG.
+    my $svg = $grid.to-svg: :$cell-size, :$text-offset;
+    # Undo encoding of heart tags. Couldn't find a way to tell XML::Writer
+    # that some text is already encoded.
+    $svg ~~ s:g/\&amp\;\#128420\;/&#128420;/;
+
+    my $html = qq:to/HTML/;
+<html>
+    <head>
+        <style>
+            @page \{
+                size: { $landscape ?? 'landscape' !! 'portrait' };
+                margin: 0;
+            }
+            body \{
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                $style
+            }
+        </style>
+    </head>
+    <body>
+        $svg
+    </body>
+</html>
+HTML
+
+    return $html;
+}
+
+
+sub html-to-pdf( Str $html-file where *.IO.r, Str $output-file, Int $debug ) {
+    run 'google-chrome',
+        '--headless',
+        '--disable-gpu',
+        '--print-to-pdf-no-header',
+        "--print-to-pdf=$output-file",
+        $html-file.IO.absolute()
+    ;
+    $html-file.IO.unlink unless $debug;
+}
+
